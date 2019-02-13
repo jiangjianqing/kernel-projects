@@ -1,0 +1,56 @@
+#修正mtdparts
+arch/arm/mach-s3c24xx/common-smdk.c    
+mini2440的mtdparts在 mach-mini2440.c中
+
+#加入dm9000支持
+arch/arm/mach-s3c24xx/mach-smdk2440.c 
+从mach-mini2440.c中将dm9000配置相关的代码复制过来并注册到设备数组smdk2440_devices中即可
+
+#加入lcd的支持
+arch/arm/mach-s3c24xx/mach-smdk2440.c 类似dm9000的修改方式
+还需要使其显示第一个终端
+输入命令：vi /etc/inittab   开发板启动好后，在里面添加一行    tty1::askfirst:-/bin/sh （因为开发板启动后，shell从串口0上得到输入，添加一行后启动另外一个shell程序，从tty1输出）
+
+#修改fb结构,屏蔽 s3c2410的lpcsel 寄存器（  LPC3600 Control Register ）在s3c2440上使用TCONSEL寄存器代替，两者地址是一样但位作用不同
+arch/arm/plat-samsung/include/plat/fb-s3c2410.h
+drivers/video/fbdev/s3c2410fb.c
+arch/arm/mach-s3c24xx/mach-smdk2440.c 
+uboot中负责对LCD相关的GPIO（主要是GPC和GPD）引脚进行设置
+
+根据jz2440原理图，GPB0用于控制lcd背光，但原理图中将该线节点错标为KEYBOARD
+
+a、看原理图：2440和外接的芯片引脚对接即可
+b、弄清楚接口的协议：数据怎么传输？各引脚怎么配合？  GPIO接口 or 协议类接口 or mtd类接口
+c.1 看2440手册弄清楚能设置哪些参数，这些参数的含义（以CLK为单位）
+c.2 看外设芯片手册，弄清楚这些参数的取值范围(以秒为单位)
+c.3 根据c.1和c.2计算2440的寄存器取值
+
+dotclock=(x向分辨率+左空边+右空边+HSYNC长度)* (y向分辨率+上空边+下空边+VSYNC长度)*frame_rate (单位：Hz)  tft屏以Vsync cycle为准，一般为59.94(60Hz)
+    :含义是一秒钟需要在屏幕上绘制的像素次数,单位：Hz 
+pixclock= 10^12 / dotclock  (单位：皮秒)  1秒 = 10^3 毫秒 = 10^6 微秒 = 10^9 纳秒 = 10^12 皮秒
+    :含义是每个像素要花费的时间周期，单位：皮秒
+jz2440的4.3寸液晶计算：
+    dotclock = 59.94 * 525 * 286 = 8999991 Hz
+    pixclock = 10 ^ 12 / 8999991 = 111111.222222333  皮秒
+
+其中x向分辨率、左空边、右空边、HSYNC长度、y向分辨率、上空边、下空边和YSYNC长度可以在X35LCD说明文档中查到。
+
+GPIO类接口：
+CPU的各个引脚通过高低电平控制外设工作
+
+协议类接口：
+UART
+I2C
+NAND
+LCD
+SPI（韦东山也比较少遇到）
+
+类似内存的接口：
+nor flash ,sdram,ddr 网卡
+
+#加入usb键盘支持
+在lcd上看到键盘输入
+
+drivers/mtd/nand/s3c2410.c : 861行 : 关闭soft_ecc, 原因大概是uboot移植的nand驱动没有加入ecc
+	chip->ecc.mode		= NAND_ECC_NONE;
+否则启动kernel会出现错误：__nand_correct_data: uncorrectable ECC error
