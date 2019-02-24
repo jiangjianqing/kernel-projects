@@ -17,7 +17,31 @@ drivers/video/fbdev/s3c2410fb.c
 arch/arm/mach-s3c24xx/mach-smdk2440.c 
 uboot中负责对LCD相关的GPIO（主要是GPC和GPD）引脚进行设置
 
-根据jz2440原理图，GPB0用于控制lcd背光，但原理图中将该线节点错标为KEYBOARD
+#移除PWM的干扰
+CONFIG_PWM_SAMSUNG
+
+
+经过比较 ，显卡驱动s3c2410fb.c在kernel 3.4 和 3.16中存在差别
+#kernel 3.16已经移除了 用于热插拔的 __devinit 定义，__cpuinit也一定会移除
+位于 include/linux/init.h
+
+ /* Used for HOTPLUG */
+#define __devinit        __section(.devinit.text) __cold notrace
+#define __devinitdata    __section(.devinit.data)
+#define __devinitconst   __section(.devinit.rodata)
+#define __devexit        __section(.devexit.text) __exitused __cold notrace
+#define __devexitdata    __section(.devexit.data)
+#define __devexitconst   __section(.devexit.rodata)
+
+/* temporary, until all users are removed */
+#define __cpuinit
+#define __cpuinitdata
+#define __cpuinitconst
+#define __cpuexit
+#define __cpuexitdata
+#define __cpuexitconst
+
+
 
 a、看原理图：2440和外接的芯片引脚对接即可
 b、弄清楚接口的协议：数据怎么传输？各引脚怎么配合？  GPIO接口 or 协议类接口 or mtd类接口
