@@ -1,0 +1,19 @@
+错误信息：
+    VFS: Cannot open root device "nfs" or unknow-block(0,255):error -6
+根因分析：
+    kernel编译参数中没有配置好正确的nfs参数
+
+
+以下方法同时支持kernel 3.16 和 4.4
+
+[*]Networking support
+        Networking options ->
+[*]           Tcp/ip networking ->
+[*]                IP: kernel level autoconfiguration   【IP_PNP,不选中这个，下面的Root file system on NFS 菜单就不会出现】
+
+    File systems ->
+[*]     Networking File Systems ->
+[*]         NFS client support ->
+[*]             NFS client support for NFS version 2 
+[*]             NFS client support for NFS version 3
+[*]     Root file system on NFS     <<------------一定要选中这个
